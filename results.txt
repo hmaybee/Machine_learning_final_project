@@ -1,0 +1,117 @@
+> linear_svm
+Support Vector Machines with Linear Kernel 
+
+14718 samples
+   42 predictor
+    5 classes: 'A', 'B', 'C', 'D', 'E' 
+
+Pre-processing: centered (42), scaled (42) 
+Resampling: Cross-Validated (10 fold, repeated 3 times) 
+Summary of sample sizes: 13247, 13245, 13247, 13246, 13246, 13245, ... 
+Resampling results:
+
+  Accuracy   Kappa    
+  0.7322991  0.6593533
+
+Tuning parameter 'C' was held constant at a value of 1
+> pred1 <- predict(linear_svm, newdata = testing)
+> confusionMatrix(pred1, testing$classe)
+Confusion Matrix and Statistics
+
+          Reference
+Prediction   A   B   C   D   E
+         A 930 119  56  61  36
+         B  20 492  74  44 132
+         C  33  42 451  77  44
+         D  43  25  27 398  65
+         E   3  58  17  24 405
+
+Overall Statistics
+                                          
+               Accuracy : 0.728           
+                 95% CI : (0.7133, 0.7423)
+    No Information Rate : 0.2799          
+    P-Value [Acc > NIR] : < 2.2e-16       
+                                          
+                  Kappa : 0.6541          
+                                          
+ Mcnemar's Test P-Value : < 2.2e-16       
+
+Statistics by Class:
+
+                     Class: A Class: B Class: C Class: D Class: E
+Sensitivity            0.9038   0.6685   0.7216   0.6589   0.5938
+Specificity            0.8972   0.9082   0.9358   0.9479   0.9659
+Pos Pred Value         0.7737   0.6457   0.6971   0.7133   0.7988
+Neg Pred Value         0.9600   0.9163   0.9426   0.9339   0.9126
+Prevalence             0.2799   0.2002   0.1700   0.1643   0.1855
+Detection Rate         0.2530   0.1338   0.1227   0.1083   0.1102
+Detection Prevalence   0.3270   0.2073   0.1760   0.1518   0.1379
+Balanced Accuracy      0.9005   0.7883   0.8287   0.8034   0.7799
+> ##try non-linear SVM
+> set.seed(1122)
+> non_linear_svm <- train(classe~., data=training, method="svmRadial",
++                     trControl=trctrl, preProcess=c("center", "scale"),
++                     tuneLength=10)
+> pred2 <- predict(non_linear_svm, newdata = testing)
+> non_linear_svm
+Support Vector Machines with Radial Basis Function Kernel 
+
+14718 samples
+   42 predictor
+    5 classes: 'A', 'B', 'C', 'D', 'E' 
+
+Pre-processing: centered (42), scaled (42) 
+Resampling: Cross-Validated (10 fold, repeated 3 times) 
+Summary of sample sizes: 13247, 13245, 13247, 13246, 13246, 13245, ... 
+Resampling results across tuning parameters:
+
+  C       Accuracy   Kappa    
+    0.25  0.8676211  0.8321844
+    0.50  0.8968150  0.8691864
+    1.00  0.9238347  0.9034634
+    2.00  0.9446026  0.9298104
+    4.00  0.9630831  0.9532533
+    8.00  0.9754493  0.9689279
+   16.00  0.9814055  0.9764704
+   32.00  0.9873396  0.9839822
+   64.00  0.9901480  0.9875365
+  128.00  0.9916201  0.9893996
+
+Tuning parameter 'sigma' was held constant at a value of 0.01634473
+Accuracy was used to select the optimal model using the largest value.
+The final values used for the model were sigma = 0.01634473 and C = 128.
+> confusionMatrix(pred2, testing$classe)
+Confusion Matrix and Statistics
+
+          Reference
+Prediction    A    B    C    D    E
+         A 1029    1    0    0    0
+         B    0  735    0    0    0
+         C    0    0  624    7    0
+         D    0    0    1  595    0
+         E    0    0    0    2  682
+
+Overall Statistics
+                                          
+               Accuracy : 0.997           
+                 95% CI : (0.9947, 0.9985)
+    No Information Rate : 0.2799          
+    P-Value [Acc > NIR] : < 2.2e-16       
+                                          
+                  Kappa : 0.9962          
+                                          
+ Mcnemar's Test P-Value : NA              
+
+Statistics by Class:
+
+                     Class: A Class: B Class: C Class: D Class: E
+Sensitivity            1.0000   0.9986   0.9984   0.9851   1.0000
+Specificity            0.9996   1.0000   0.9977   0.9997   0.9993
+Pos Pred Value         0.9990   1.0000   0.9889   0.9983   0.9971
+Neg Pred Value         1.0000   0.9997   0.9997   0.9971   1.0000
+Prevalence             0.2799   0.2002   0.1700   0.1643   0.1855
+Detection Rate         0.2799   0.1999   0.1697   0.1619   0.1855
+Detection Prevalence   0.2802   0.1999   0.1717   0.1621   0.1861
+Balanced Accuracy      0.9998   0.9993   0.9981   0.9924   0.9997
+> 

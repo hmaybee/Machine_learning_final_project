@@ -1,0 +1,96 @@
+---
+title: "Predicting Exercise Variations"
+author: "Hilary M"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(caret)
+library(dplyr)
+```
+
+### Purpose
+
+This report will show how a model was developed to train exercise sensor data and predict the exercise variation. The five variations are identified by letters A, B, C, D, and E. The predictors for the model consist of numerical measures from various sensors. The measures include roll, pitch and yaw as well as statistics calculations, such as Kurtosis and variance.
+
+### Importing and cleaning the data
+
+Two data files were provided for building, testing, and making predictions. The file named pml-training.csv contains the data that was first used for training and testing the model. We will read in the training data set and take a look at the structure of the data:
+```{r}
+pml.training <- read.csv("pml-training.csv")
+##remove row numbers
+training <- pml.training[,-1]
+str(training, list.len=10)
+```
+The original data set consists of 19622 observations of 159 variables after removing the row numbers column. This includes the outcome variable (classe).Since we are trying to predict the outcome based on the sensor data, the variables concerning user names and time measurements were removed. Also, the character strings, #DIV/0! and blanks were converted to NA values:
+```{r}
+excluded_cols <- c("user_name", "raw_timestamp_part_1", "raw_timestamp_part_2", 
+                   "cvtd_timestamp", "new_window", "num_window")
+training <- training %>%
+  select(-any_of(excluded_cols))
+##change divide by zero and blanks to NA
+training[training=="#DIV/0!"] <- NA
+training[training==""] <- NA
+```
+Exploratory analysis show that there are a lot of NA's in the data set, since a variable that consists mostly of NA values does not contribute much to the outcome, the variables that consisted of 80% or more NA's were removed. Also the outcome variable, classe, is converter to a factor:
+```{r}
+remove <- names(training[,which(colMeans(is.na(training))>=.8)])
+training <- training %>%
+  select(-any_of(remove)) %>%
+  mutate(classe = factor(classe))
+```
+### Preprocess and train the model
+
+For building the model, the training data was broken into training and testing sets. Once we get a final model, we will use it to predict the outcome for the data in the given testing data file:
+```{r}
+set.seed(1122)
+inTrain = createDataPartition(training$classe, p = 3/4, list=FALSE)
+training = training[inTrain,]
+testing = training[-inTrain,]
+```
+Since this is a classification problem and the predictors are numerical, the Support Vector Machine model is a good place to start. Due to the large number of predictors and the computational complexity of SVM, we check the predictors to see if we can reduce the total number. First check for near zero variance:
+```{r}
+nsv <- nearZeroVar(training, saveMetrics=TRUE)
+```
+A look at the nsv variable shows no TRUE values, so no predictors will be removed.
+
+Next, looking at correlations between predictors, we find that there are 8 predictors that are highly correlated to other predictors (cutoff correlation value of .85). The findCorrelation function (caret package) is used to determine which predictors to remove:
+```{r}
+descrCor <-  cor(training[,-53])
+highlyCorDescr <- findCorrelation(descrCor, cutoff = .85)
+##there are 8 predictors that meet this threshold
+training <- training[,-highlyCorDescr]
+```
+The data is numeric and after looking at summary statistics we know that the different attributes have different ranges so we will preprocess our data to center and scale. We will first try a linear SVM, we will resample the data using repeated cross-validation with 10 folds and 3 repeats:
+```{r}
+trctrl <- trainControl(method="repeatedcv", number=10, repeats=3)
+linear_svm <- train(classe~., data=training, method="svmLinear",
+                 trControl=trctrl, preProcess=c("center", "scale"),
+                 tuneLength=10)
+linear_svm
+
+```
+The results show that the accuracy is .73. We will try to do better by using a non-linear kernel. We will continue to preprocess the data to center and scale, and will resample using repeated cross-validation, but now we will use the radial basis function non-linear kernel:
+```{r}
+non_linear_svm <- train(classe~., data=training, method="svmRadial",
+                    trControl=trctrl, preProcess=c("center", "scale"),
+                    tuneLength=10)
+non_linear_svm
+```
+These model results are much better. The model is resampled across tuning parameters and selects the optimal parameter values of sigma = 0.01634473 and C (cost) = 128. This results in an accuracy of .992.
+
+We can now check the accuracy for the testing set:
+```{r}
+pred <- predict(non_linear_svm, newdata = testing)
+confusionMatrix(pred, testing$classe)
+```
+Our results show the predicted data has an accuracy of .999 on our test data. The confusion matrix shows that most outcomes were classified correctly. I would expect the model to perform similarly on other data, so I would expect a similar accuracy and small out of sample error. Although the model takes quite a while to train, the prediction is very quick and accuracy is high. 
+
+We will use the model to predict the outcome for the cases in the given test set and get the following results:
+
+```{r}
+test_new <- read.csv("pml-testing.csv")
+pred2 <- predict(non_linear_svm, newdata = test_new)
+pred2
